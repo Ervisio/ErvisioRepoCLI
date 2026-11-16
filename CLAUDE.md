@@ -14,7 +14,7 @@ output, codici di uscita; variabili d'ambiente `EG_*`).
 3. Prima di implementare un comando si verifica che la route esista nel server
    (`internal/ghapi/ghapi.go` di ErvisioRepo); se manca, errore chiaro
    "not supported by this ErvisioRepo server yet" (`cmdutil.Unsupported`), mai simulare.
-4. **Niente test**: non si scrivono né si eseguono test, niente CI (nessun workflow GitHub).
+4. **Niente test**: non si scrivono né si eseguono test, niente CI (nessun workflow GitHub). Unica eccezione, voluta dall'utente: il workflow di release per ErvisioRepo Actions in `.ervisio/workflows/release.yml` (repo `ErvisioDev/ervisiogit-cli` su git.ervisio.app).
    Le verifiche sono `go build ./...`, `go vet ./...`, `gofmt -l .` vuoto e `make lint`.
 5. Codice, commenti e messaggi in inglese; documentazione utente in inglese (`README.md`)
    e italiano (`README.it.md`). Errori Go con `fmt.Errorf("…: %w", err)`.

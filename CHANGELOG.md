@@ -5,8 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-16
+
 ### Added
 
+- Release workflow for ErvisioRepo Actions (`.ervisio/workflows/release.yml`): on a `v*` tag, or run by hand with a tag, it builds eg for macOS, Linux and Windows (amd64, arm64) and publishes the release with the archives and `checksums.txt`. The repository is mirrored at `ErvisioDev/ervisiogit-cli` on git.ervisio.app.
 - `install.sh` (macOS, Linux) and `install.ps1` (Windows) install the latest release and verify its checksum.
 
 ## [0.1.0] - 2026-11-16
