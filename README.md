@@ -28,8 +28,8 @@ eg auth status
 ```
 
 The browser login uses the server's OAuth device flow: `eg` prints a one-time
-code and the URL of `https://<host>/login/device`; open it, sign in and enter the
-code. Personal access tokens (prefix `erp_`) are created in the web UI under
+code and, after you press Enter, opens `https://<host>/login/device` in the
+browser; sign in and enter the code. Personal access tokens (prefix `erp_`) are created in the web UI under
 Settings → Tokens (`https://<host>/settings?section=tokens`) with at least the
 `repo:write` and `user:read` scopes.
 
@@ -50,29 +50,57 @@ Credentials live in `~/.config/eg/hosts.yml` (mode 0600), settings in
 | `eg repo edit [repo]` | `--description`, `--default-branch`, `--visibility` |
 | `eg repo rename [new-name]` | updates the matching git remote |
 | `eg repo sync` | local sync from the remote (fast-forward or `--force`) |
-| `eg browse [number \| path[:line] \| sha]` | `--branch`, `--commit`, `--settings`, `--releases`, `--actions` |
+| `eg browse [number \| path[:line] \| sha]` | `--branch`, `--commit`, `--settings`, `--releases`, `--actions`, `--no-browser` |
+| `eg issue list` | `-s`, `-l`, `-a`, `-A`, `--mention`, `-m`, `-S/--search`, `-L`, `--json`, `--web` |
+| `eg issue view <n>` | `--comments`, `--json`, `--web` |
+| `eg issue create` | `-t`, `-b`, `-F`, `-e`, `-a`, `-l`, `-m`, `--web`; prompts and editor on a terminal |
+| `eg issue edit <n>...` | `-t`, `-b`, `-F`, `--add/remove-label`, `--add/remove-assignee`, `-m`, `--remove-milestone` |
+| `eg issue close / reopen <n>` | `-c`, `-r completed\|not planned\|duplicate`, `--duplicate-of` |
+| `eg issue comment <n>` | `-b`, `-F`, `-e`, `--web`, `--edit-last`, `--delete-last`, `--create-if-none` |
+| `eg issue status` | assigned, mentioning and opened by you |
+| `eg pr list` | `-s open\|closed\|merged\|all`, `-B`, `-H`, `-l`, `-a`, `-A`, `-d`, `-S`, `-L`, `--json`, `--web` |
+| `eg pr view / diff [n\|url\|branch]` | `--comments`, `--json`, `--web`; diff `--patch`, `--name-only`, `--color` |
+| `eg pr create` | `-t`, `-b`, `-F`, `-B`, `-H`, `-d`, `-f`, `--fill-first`, `-e`, `-a`, `-l`, `-m`, `-r`, `--web`, `--dry-run`, `--no-maintainer-edit`; pushes the branch (asks first) |
+| `eg pr checkout <n>` | `-b`, `-f`, `--detach`, `--recurse-submodules`; forks through `refs/pull/<n>/head` |
+| `eg pr merge` | `-m/-s/-r`, `-t`, `-b`, `-F`, `-d`, `--auto`, `--disable-auto`, `--match-head-commit` |
+| `eg pr close / reopen / ready / comment / edit / review` | as gh; `ready --undo`, `close -d`, `edit -B --add/remove-reviewer` |
+| `eg pr status / checks` | checks: statuses and check runs, `--watch`, `--fail-fast`, `-i`, `--json`; exit 8 when pending |
+| `eg release list / view / create / edit / delete` | `--notes`, `-F`, `-t`, `--target`, `-d`, `-p`, `--verify-tag`, `--notes-from-tag`, `--cleanup-tag` |
+| `eg release upload / download / delete-asset` | `--clobber`; download `-p`, `-D`, `-O`, `-A zip\|tar.gz`, `--skip-existing` |
+| `eg label list / create / edit / delete` | `-S`, `--sort`, `--order`, `-c`, `-d`, `-f`, `-n` |
 
 Repository resolution follows gh: `--repo/-R [HOST/]OWNER/REPO`, then `EG_REPO`,
 then the git remotes that point to a logged-in host (`upstream`, then `origin`).
 Run `eg help environment` for `EG_HOST`, `EG_TOKEN`, `EG_REPO`, `EG_CONFIG_DIR`,
-`EG_DEBUG`, `EG_FORCE_TTY`, `EG_PROMPT_DISABLED`, `NO_COLOR`.
+`EG_BROWSER`, `EG_PAGER`, `EG_EDITOR`, `EG_DEBUG`, `EG_FORCE_TTY`, `EG_PROMPT_DISABLED`,
+`NO_COLOR`, `CLICOLOR_FORCE`.
 
-Exit codes: 0 success, 1 error, 2 cancelled, 4 authentication required.
+Like gh, `eg` opens the browser (`EG_BROWSER`, config `browser`, `BROWSER`, else
+`open`/`xdg-open`/`rundll32`), pages long output on a terminal (`EG_PAGER`, config
+`pager`, `PAGER`, else `less -R` with `LESS=FRX`) and opens an editor for bodies
+(`EG_EDITOR`, config `editor`, `VISUAL`, `EDITOR`, else `nano`). The values are split
+into words like a shell would, but never run through a shell.
+
+Exit codes: 0 success, 1 error, 2 cancelled, 4 authentication required, 8 checks pending.
 
 ## Differences from gh
 
 - There is no default host: `eg` uses `EG_HOST`, else the first logged-in host.
   `EG_TOKEN` applies to every host.
-- `eg` never starts a browser or a pager (the only process it runs is `git`):
-  `--web`, `eg browse` and the login flow print the URL to open instead.
 - `--jq` supports simple paths only (`.name`, `.[].name`, `.items | .[0]`);
   `--template` is not supported.
 - Tokens are always stored in `hosts.yml` (no keyring).
 - Not supported by the server yet: `repo fork` (no `POST /repos/{owner}/{repo}/forks`),
   remote `repo sync` (no `merge-upstream`), `repo create --template/--gitignore/--license/--add-readme`,
-  `repo edit` settings other than description, default branch and visibility, `browse --wiki/--projects`.
-- Not implemented yet: `issue`, `pr`, `release`, `run`, `workflow`, `search`, `gist`,
-  `status`, `auth switch/refresh`, `repo set-default`, `config`, `alias`, `extension`.
+  `repo edit` settings other than description, default branch and visibility, `browse --wiki/--projects`,
+  `issue delete` (no `deleteIssue` mutation), `issue lock/unlock` (no `PUT/DELETE .../issues/{n}/lock`),
+  `release create --generate-notes/--notes-start-tag` (no `POST .../releases/generate-notes`),
+  `release --latest` (`make_latest` is ignored), `pr merge --admin/--author-email`, `pr checks --required`,
+  team reviewers and projects.
+- `issue list`/`pr list` print "Showing N of M" from the REST pages (up to 1000 items counted);
+  `--search` and `status` use the server's GraphQL `search`, which needs a `repo:` qualifier.
+- Not implemented yet: `issue develop/pin/unpin/transfer`, `label clone`, `run`, `workflow`,
+  `search`, `gist`, `status`, `auth switch/refresh`, `repo set-default`, `config`, `alias`, `extension`.
 
 ## Development
 

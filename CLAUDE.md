@@ -5,8 +5,12 @@ output, codici di uscita; variabili d'ambiente `EG_*`).
 
 1. Solo libreria standard Go (`flag`, `net/http`, `encoding/json`...); nessuna dipendenza
    esterna. Non si modifica `go.mod` senza dirlo nel report.
-2. `os/exec` solo per lanciare `git`, e solo da `internal/git` (argv diretto, mai shell).
-   Niente browser né pager: si stampa l'URL.
+2. `os/exec` solo in `internal/git` (per `git`) e in `internal/launch` (browser, pager,
+   editor dell'utente, come gh), sempre con argv diretto e mai via shell. I valori di
+   `EG_BROWSER`/`BROWSER`, `EG_PAGER`/`PAGER` e `EG_EDITOR`/`VISUAL`/`EDITOR` (o delle chiavi
+   `browser`, `pager`, `editor` di `config.yml`) si dividono in argv con `launch.SplitWords`.
+   Browser predefinito: `open` (macOS), `xdg-open` (Linux), `rundll32 url.dll,FileProtocolHandler`
+   (Windows); pager predefinito `less -R` con `LESS=FRX` solo se stdout è un terminale.
 3. Prima di implementare un comando si verifica che la route esista nel server
    (`internal/ghapi/ghapi.go` di ErvisioRepo); se manca, errore chiaro
    "not supported by this ErvisioRepo server yet" (`cmdutil.Unsupported`), mai simulare.
@@ -21,8 +25,10 @@ output, codici di uscita; variabili d'ambiente `EG_*`).
 ## Struttura
 
 - `cmd/eg`: `main` minimale.
-- `internal/cmd/<gruppo>`: comandi (`auth`, `api`, `repo`, `browse`, `root`).
+- `internal/cmd/<gruppo>`: comandi (`auth`, `api`, `repo`, `browse`, `issue`, `pr`,
+  `release`, `label`, `root`); `internal/cmd/shared` contiene tipi e helper comuni a issue e pr.
 - `internal/cmdutil`: albero dei comandi, flag, help, factory, tabelle, `--json`, prompt.
 - `internal/api`: client REST/GraphQL; `internal/config`: `hosts.yml`/`config.yml`;
   `internal/ghrepo`: parsing dei repository; `internal/git`: esecuzione di git;
-  `internal/iostreams`: TTY e colori; `internal/jsonx`: JSON colorato e `--jq` semplice.
+  `internal/iostreams`: TTY e colori; `internal/jsonx`: JSON colorato e `--jq` semplice;
+  `internal/launch`: browser, pager ed editor.

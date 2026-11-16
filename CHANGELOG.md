@@ -7,6 +7,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Phase 2a: `eg issue` (`list`, `view`, `create`, `edit`, `close`, `reopen`, `comment`,
+  `status`; `delete`, `lock` and `unlock` report the missing server endpoints).
+- `eg pr` (`list`, `view`, `create`, `checkout`, `diff`, `merge`, `close`, `reopen`,
+  `comment`, `edit`, `review`, `ready`, `status`, `checks`): checkout of forks through
+  `refs/pull/<n>/head`, `create` pushes the branch after asking, `merge --auto` through
+  GraphQL, `checks` from commit statuses and check runs (exit code 8 when pending).
+- `eg release` (`list`, `view`, `create`, `edit`, `delete`, `upload`, `download`,
+  `delete-asset`) with uploads through `/api/uploads` and source archive downloads.
+- `eg label` (`list`, `create`, `edit`, `delete`).
+- Browser, pager and editor like gh: `EG_BROWSER`/`BROWSER`, `EG_PAGER`/`PAGER`
+  (default `less -R` with `LESS=FRX`), `EG_EDITOR`/`VISUAL`/`EDITOR`, and the `browser`,
+  `pager` and `editor` keys of `config.yml`; commands are split into argv, never run
+  through a shell. `--web`, `eg browse` and the device login open the browser.
+- Relative times, state colors and true-color label colors in tables.
+
+### Changed
+
+- `eg browse` opens the browser; `--no-browser` prints the URL.
+
 - `eg`, a gh-compatible CLI for ErvisioRepo, built with the Go standard library only.
 - `eg auth login` (OAuth device flow by default, `--with-token`, `--git-protocol`, plain-http
   hosts), `logout`, `status`, `token`, `setup-git` and the `git-credential` helper.

@@ -4,9 +4,11 @@ package iostreams
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // IOStreams are the streams of a command.
@@ -116,10 +118,26 @@ func readLine(r io.Reader) (string, error) {
 }
 
 // ColorScheme returns the color helpers of stdout.
-func (s *IOStreams) ColorScheme() *ColorScheme { return &ColorScheme{enabled: s.color} }
+func (s *IOStreams) ColorScheme() *ColorScheme {
+	ct := os.Getenv("COLORTERM")
+	return &ColorScheme{enabled: s.color, trueColor: s.color && (strings.Contains(ct, "truecolor") || strings.Contains(ct, "24bit"))}
+}
 
 // ColorScheme applies ANSI colors when enabled.
-type ColorScheme struct{ enabled bool }
+type ColorScheme struct{ enabled, trueColor bool }
+
+// HexColor paints t with an "rrggbb" color on true-color terminals.
+func (c *ColorScheme) HexColor(hex, t string) string {
+	hex = strings.TrimPrefix(hex, "#")
+	if !c.trueColor || len(hex) != 6 {
+		return t
+	}
+	var r, g, b int
+	if _, err := fmt.Sscanf(hex, "%02x%02x%02x", &r, &g, &b); err != nil {
+		return t
+	}
+	return fmt.Sprintf("\x1b[38;2;%d;%d;%dm%s\x1b[0m", r, g, b, t)
+}
 
 func (c *ColorScheme) wrap(code, t string) string {
 	if !c.enabled || t == "" {

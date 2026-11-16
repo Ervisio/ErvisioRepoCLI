@@ -31,8 +31,8 @@ func newLogin(f *cmdutil.Factory) *cmdutil.Command {
 		Long: `Authenticate with an ErvisioRepo server.
 
 The default authentication mode is a web-based browser flow (OAuth device
-flow): eg shows a one-time code and the URL of the server's device page;
-open it in a browser, sign in and enter the code. eg polls the server
+flow): eg shows a one-time code and opens the server's device page in the
+browser; sign in and enter the code. eg polls the server
 until the login is approved. The interactive prompt also offers to paste a
 personal access token instead, created under Settings → Tokens with at
 least the repo:write and user:read scopes.

@@ -3,6 +3,7 @@ package cmdutil
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/Ervisio/ErvisioRepoCLI/internal/ghrepo"
 	"github.com/Ervisio/ErvisioRepoCLI/internal/git"
 	"github.com/Ervisio/ErvisioRepoCLI/internal/iostreams"
+	"github.com/Ervisio/ErvisioRepoCLI/internal/launch"
 )
 
 // Factory gives commands their dependencies.
@@ -24,6 +26,9 @@ type Factory struct {
 	cfgOnce sync.Once
 	cfg     *config.Config
 	cfgErr  error
+
+	pager    *launch.Pager
+	pagerOut io.Writer
 }
 
 // NewFactory builds the factory of the process.
@@ -169,16 +174,96 @@ func (f *Factory) WebURL(r ghrepo.Repo, p string) string {
 	return ghrepo.WebURL(r, scheme, p)
 }
 
-// OpenURL stands in for opening a browser: eg starts no process other
-// than git, so it prints the URL to open (like gh's --no-browser).
+// configValue returns a key of config.yml ("" when unset or unreadable).
+func (f *Factory) configValue(key string) string {
+	cfg, err := f.Config()
+	if err != nil {
+		return ""
+	}
+	return cfg.Get("", key)
+}
+
+// BrowserCommand is the configured browser: $EG_BROWSER, the browser key
+// of config.yml, then $BROWSER ("" means the platform opener).
+func (f *Factory) BrowserCommand() string {
+	if v := os.Getenv("EG_BROWSER"); v != "" {
+		return v
+	}
+	if v := f.configValue("browser"); v != "" {
+		return v
+	}
+	return os.Getenv("BROWSER")
+}
+
+// PagerCommand is the configured pager: $EG_PAGER, the pager key of
+// config.yml, then $PAGER, else "less -R". "cat" or an empty value turns
+// paging off.
+func (f *Factory) PagerCommand() string {
+	for _, v := range []string{os.Getenv("EG_PAGER"), f.configValue("pager"), os.Getenv("PAGER")} {
+		if v != "" {
+			return v
+		}
+	}
+	if _, set := os.LookupEnv("EG_PAGER"); set {
+		return ""
+	}
+	return "less -R"
+}
+
+// EditorCommand is the configured editor: $EG_EDITOR, the editor key of
+// config.yml, $VISUAL, $EDITOR, then nano (notepad on Windows).
+func (f *Factory) EditorCommand() string {
+	for _, v := range []string{os.Getenv("EG_EDITOR"), f.configValue("editor"), os.Getenv("VISUAL"), os.Getenv("EDITOR")} {
+		if v != "" {
+			return v
+		}
+	}
+	return launch.DefaultEditor()
+}
+
+// Edit opens text in the editor and returns the result.
+func (f *Factory) Edit(fileName, text string) (string, error) {
+	return launch.Edit(f.EditorCommand(), fileName, text)
+}
+
+// OpenURL opens u in the browser, as gh does. It prints a short notice
+// on a terminal.
 func (f *Factory) OpenURL(u string) error {
 	if f.IO.IsStderrTTY() {
 		display := u
 		if p, err := url.Parse(u); err == nil {
 			display = p.Host + p.Path
 		}
-		fmt.Fprintf(f.IO.ErrOut, "Open %s in your browser.\n", display)
+		fmt.Fprintf(f.IO.ErrOut, "Opening %s in your browser.\n", display)
 	}
-	_, err := fmt.Fprintln(f.IO.Out, u)
-	return err
+	return launch.Browse(f.BrowserCommand(), u, f.IO.Out, f.IO.ErrOut)
+}
+
+// StartPager pipes stdout through the pager when stdout is a terminal.
+// Call StopPager when the output is complete.
+func (f *Factory) StartPager() error {
+	if !f.IO.IsStdoutTTY() || f.pager != nil {
+		return nil
+	}
+	cmd := f.PagerCommand()
+	if cmd == "" || cmd == "cat" {
+		return nil
+	}
+	p, err := launch.StartPager(cmd, f.IO.Out, f.IO.ErrOut)
+	if err != nil {
+		return err
+	}
+	f.pager, f.pagerOut = p, f.IO.Out
+	f.IO.Out = p
+	return nil
+}
+
+// StopPager waits for the pager started by StartPager.
+func (f *Factory) StopPager() {
+	if f.pager == nil {
+		return
+	}
+	_ = f.pager.Close()
+	f.IO.Out = f.pagerOut
+	f.pager, f.pagerOut = nil, nil
 }

@@ -55,3 +55,6 @@ func (e *UnsupportedError) Error() string {
 func Unsupported(what, endpoint string) error {
 	return &UnsupportedError{What: what, Endpoint: endpoint}
 }
+
+// ErrPending exits 8 without printing anything more (checks pending).
+var ErrPending = errors.New("PendingError")

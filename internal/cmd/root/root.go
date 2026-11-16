@@ -13,6 +13,10 @@ import (
 	apicmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/api"
 	authcmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/auth"
 	browsecmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/browse"
+	issuecmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/issue"
+	labelcmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/label"
+	prcmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/pr"
+	releasecmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/release"
 	repocmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/repo"
 	"github.com/Ervisio/ErvisioRepoCLI/internal/cmdutil"
 )
@@ -23,6 +27,7 @@ const (
 	exitError  = 1
 	exitCancel = 2
 	exitAuth   = 4
+	exitPend   = 8
 )
 
 // New builds the command tree.
@@ -37,7 +42,8 @@ $ eg api repos/{owner}/{repo}/releases`,
 		IO: f.IO,
 	}
 	root.AddGroup(cmdutil.Group{ID: "core", Title: "CORE COMMANDS"})
-	root.AddCommand(authcmd.New(f), browsecmd.New(f), repocmd.New(f), apicmd.New(f), newVersion(f), newHelp(f, root))
+	root.AddCommand(authcmd.New(f), browsecmd.New(f), issuecmd.New(f), prcmd.New(f), releasecmd.New(f), repocmd.New(f),
+		labelcmd.New(f), apicmd.New(f), newVersion(f), newHelp(f, root))
 	return root
 }
 
@@ -112,6 +118,20 @@ If not specified, the default value will be one of the following paths
 (in order of precedence): "$XDG_CONFIG_HOME/eg" (if $XDG_CONFIG_HOME is
 set), "$AppData/eg" (Windows only), "$HOME/.config/eg".
 
+EG_BROWSER, BROWSER: the web browser to use for opening links, as a
+command line split into words like a shell would (no shell is involved).
+The browser key of config.yml sits between the two. By default eg uses
+open on macOS, xdg-open on Linux and rundll32 on Windows.
+
+EG_EDITOR, VISUAL, EDITOR (in this order, with the editor key of
+config.yml after EG_EDITOR): the editor for authoring text, e.g. issue
+and pull request bodies. Defaults to nano (notepad on Windows).
+
+EG_PAGER, PAGER (with the pager key of config.yml after EG_PAGER): a
+terminal paging program to send standard output to, e.g. "less". Defaults
+to "less -R"; set EG_PAGER to "" or "cat" to disable paging. LESS=FRX and
+LV=-c are set when unset.
+
 EG_DEBUG: set to a truthy value to enable verbose output of HTTP requests
 on standard error.
 
@@ -167,6 +187,8 @@ func Main(args []string) int {
 		return exitError
 	case errors.Is(err, cmdutil.ErrCancel):
 		return exitCancel
+	case errors.Is(err, cmdutil.ErrPending):
+		return exitPend
 	case errors.As(err, &authErr):
 		fmt.Fprintln(stderr, err)
 		return exitAuth

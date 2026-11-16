@@ -249,3 +249,36 @@ func IsStatus(err error, status int) bool {
 	var he *HTTPError
 	return errors.As(err, &he) && he.StatusCode == status
 }
+
+// Upload sends a raw body of a known size (release assets need a
+// Content-Length) and decodes the JSON answer into out.
+func (c *Client) Upload(rawURL string, body io.Reader, size int64, contentType string, out any) error {
+	req, err := http.NewRequest(http.MethodPost, rawURL, body)
+	if err != nil {
+		return fmt.Errorf("build request: %w", err)
+	}
+	req.ContentLength = size
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "Ervisio CLI "+build.Version)
+	if c.Token != "" {
+		req.Header.Set("Authorization", "token "+c.Token)
+	}
+	if c.Debug != nil {
+		fmt.Fprintf(c.Debug, "* Request to %s\n> POST %s (%d bytes)\n", rawURL, req.URL.RequestURI(), size)
+	}
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return fmt.Errorf("error connecting to %s: %w", c.Host, err)
+	}
+	defer resp.Body.Close() //nolint:errcheck // read-only body
+	if resp.StatusCode >= 300 {
+		return HandleHTTPError(resp)
+	}
+	if out != nil {
+		if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+			return fmt.Errorf("decode response from %s: %w", rawURL, err)
+		}
+	}
+	return nil
+}

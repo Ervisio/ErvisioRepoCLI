@@ -30,8 +30,8 @@ func New(f *cmdutil.Factory) *cmdutil.Command {
 issues, pull requests, repository content, repository home page, and
 repository settings.
 
-eg starts no process other than git, so it prints the URL to open instead
-of launching a browser (as gh does with --no-browser).`,
+The browser is $EG_BROWSER, the browser config key or $BROWSER, else the
+opener of the platform. With --no-browser the URL is printed instead.`,
 		Example: `$ eg browse
 #=> Open the home page of the current repository
 
@@ -57,7 +57,7 @@ $ eg browse main.go --branch bug-fix
 	fl.StringVarP(&repoFlag, "repo", "R", "", "Select another repository using the `[HOST/]OWNER/REPO` format")
 	fl.StringVarP(&branch, "branch", "b", "", "Select another branch by passing in the branch name")
 	fl.BoolVarP(&commit, "commit", "c", false, "Select the last commit")
-	fl.BoolVarP(&noBrowser, "no-browser", "n", false, "Print destination URL instead of opening the browser (always the case in eg)")
+	fl.BoolVarP(&noBrowser, "no-browser", "n", false, "Print destination URL instead of opening the browser")
 	fl.BoolVarP(&settings, "settings", "s", false, "Open repository settings")
 	fl.BoolVarP(&releases, "releases", "r", false, "Open repository releases")
 	fl.BoolVarP(&actions, "actions", "a", false, "Open repository actions")
@@ -116,6 +116,10 @@ $ eg browse main.go --branch bug-fix
 			if err != nil {
 				return err
 			}
+		}
+		if noBrowser {
+			_, err := fmt.Fprintln(f.IO.Out, target)
+			return err
 		}
 		return f.OpenURL(target)
 	}

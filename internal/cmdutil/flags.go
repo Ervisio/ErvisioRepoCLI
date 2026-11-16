@@ -218,3 +218,13 @@ func (f *FlagSet) usages() string {
 	}
 	return b.String()
 }
+
+// Set assigns a flag value and marks it as changed, as if it had been
+// given on the command line.
+func (f *FlagSet) Set(name, value string) error {
+	if err := f.fs.Set(name, value); err != nil {
+		return fmt.Errorf("set --%s: %w", name, err)
+	}
+	f.changed[f.longName(name)] = true
+	return nil
+}

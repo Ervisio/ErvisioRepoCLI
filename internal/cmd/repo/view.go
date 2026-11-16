@@ -25,8 +25,7 @@ func newView(f *cmdutil.Factory) *cmdutil.Command {
 
 With no argument, the repository for the current directory is displayed.
 
-With '--web', the repository URL is printed so you can open it in a
-browser (eg does not launch one).
+With '--web', open the repository in a web browser instead.
 
 With '--branch', view a specific branch of the repository.`,
 		GroupID: "targeted",
@@ -97,7 +96,7 @@ With '--branch', view a specific branch of the repository.`,
 		if readme == "" {
 			fmt.Fprintln(out, cs.Gray("This repository does not have a README"))
 		} else {
-			fmt.Fprintln(out, renderMarkdown(readme, cs.Bold))
+			fmt.Fprintln(out, cmdutil.RenderMarkdown(readme, cs.Bold))
 		}
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, cs.Gray("View this repository on ErvisioRepo: "+repo.HTMLURL))
@@ -130,25 +129,4 @@ func fetchReadme(c *api.Client, r ghrepo.Repo, ref string) (string, error) {
 		return "", fmt.Errorf("decode README: %w", err)
 	}
 	return string(b), nil
-}
-
-// renderMarkdown prints Markdown plainly: headings in bold, everything
-// else as written.
-func renderMarkdown(md string, bold func(string) string) string {
-	lines := strings.Split(strings.TrimRight(md, "\n"), "\n")
-	inFence := false
-	for i, l := range lines {
-		t := strings.TrimSpace(l)
-		if strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~") {
-			inFence = !inFence
-			lines[i] = "  " + l
-			continue
-		}
-		if !inFence && strings.HasPrefix(t, "#") {
-			lines[i] = "  " + bold(strings.TrimSpace(strings.TrimLeft(t, "#")))
-			continue
-		}
-		lines[i] = "  " + l
-	}
-	return strings.Join(lines, "\n")
 }

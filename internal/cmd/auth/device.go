@@ -12,6 +12,7 @@ import (
 
 	"github.com/Ervisio/ErvisioRepoCLI/internal/build"
 	"github.com/Ervisio/ErvisioRepoCLI/internal/cmdutil"
+	"github.com/Ervisio/ErvisioRepoCLI/internal/launch"
 )
 
 // clientID is the built-in OAuth client of eg on ErvisioRepo servers.
@@ -62,8 +63,7 @@ func postForm(base, p string, form url.Values, out any) error {
 }
 
 // deviceFlow runs the OAuth device authorization grant and returns the
-// access token. eg starts no process other than git, so the user opens
-// the verification page.
+// access token; the verification page is opened in the browser.
 func deviceFlow(f *cmdutil.Factory, scheme, host string, extraScopes []string) (string, error) {
 	ios := f.IO
 	cs := ios.ColorScheme()
@@ -84,13 +84,22 @@ func deviceFlow(f *cmdutil.Factory, scheme, host string, extraScopes []string) (
 		dc.VerificationURI = base + "/login/device"
 	}
 	fmt.Fprintf(ios.ErrOut, "%s First copy your one-time code: %s\n", cs.Yellow("!"), cs.Bold(dc.UserCode))
+	page := dc.VerificationURI + "?user_code=" + url.QueryEscape(dc.UserCode)
+	opened := false
 	if ios.CanPrompt() {
-		fmt.Fprintf(ios.ErrOut, "Press Enter to show the page to open in your browser... ")
+		fmt.Fprintf(ios.ErrOut, "Press Enter to open %s in your browser... ", strings.TrimPrefix(strings.TrimPrefix(dc.VerificationURI, "https://"), "http://"))
 		if _, err := ios.ReadLine(); err != nil {
 			return "", cmdutil.ErrCancel
 		}
+		if err := launch.Browse(f.BrowserCommand(), page, ios.ErrOut, ios.ErrOut); err != nil {
+			fmt.Fprintf(ios.ErrOut, "%s Failed opening a web browser at %s\n  %s\n  Please try entering the URL in your browser manually\n", cs.Red("!"), page, err)
+		} else {
+			opened = true
+		}
 	}
-	fmt.Fprintf(ios.ErrOut, "Open this URL in your browser: %s\n", cs.Bold(dc.VerificationURI+"?user_code="+url.QueryEscape(dc.UserCode)))
+	if !opened && !ios.CanPrompt() {
+		fmt.Fprintf(ios.ErrOut, "Open this URL in your browser: %s\n", cs.Bold(page))
+	}
 
 	interval := time.Duration(max(dc.Interval, 5)) * time.Second
 	expires := time.Now().Add(time.Duration(max(dc.ExpiresIn, 60)) * time.Second)
