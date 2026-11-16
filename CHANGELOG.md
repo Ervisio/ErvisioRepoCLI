@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `install.sh` (macOS, Linux) and `install.ps1` (Windows) install the latest release and verify its checksum.
+
 ## [0.1.0] - 2026-11-16
 
 ### Added

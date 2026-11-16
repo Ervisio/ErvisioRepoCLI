@@ -9,6 +9,20 @@ uscita, e parla con l'API compatibile GitHub di un server ErvisioRepo (`/api/v3`
 
 ## Installazione
 
+macOS e Linux (installa in `/usr/local/bin` se scrivibile, altrimenti in `~/.local/bin`; verifica lo SHA-256):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Ervisio/ErvisioRepoCLI/main/install.sh | sh
+```
+
+Windows (PowerShell, installa in `%LOCALAPPDATA%\Programs\eg` e lo aggiunge al `PATH`):
+
+```powershell
+irm https://raw.githubusercontent.com/Ervisio/ErvisioRepoCLI/main/install.ps1 | iex
+```
+
+`EG_VERSION` sceglie la versione, `EG_INSTALL_DIR` la cartella. Con Go:
+
 ```sh
 go install github.com/Ervisio/ErvisioRepoCLI/cmd/eg@latest
 ```

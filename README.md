@@ -9,6 +9,20 @@ codes, talking to the GitHub-compatible API of an ErvisioRepo server
 
 ## Install
 
+macOS and Linux (installs to `/usr/local/bin` when writable, else `~/.local/bin`; checks the SHA-256):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Ervisio/ErvisioRepoCLI/main/install.sh | sh
+```
+
+Windows (PowerShell, installs to `%LOCALAPPDATA%\Programs\eg` and adds it to `PATH`):
+
+```powershell
+irm https://raw.githubusercontent.com/Ervisio/ErvisioRepoCLI/main/install.ps1 | iex
+```
+
+`EG_VERSION` picks a version, `EG_INSTALL_DIR` the directory. With Go:
+
 ```sh
 go install github.com/Ervisio/ErvisioRepoCLI/cmd/eg@latest
 ```
