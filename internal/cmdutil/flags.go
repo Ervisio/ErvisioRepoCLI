@@ -228,3 +228,18 @@ func (f *FlagSet) Set(name, value string) error {
 	f.changed[f.longName(name)] = true
 	return nil
 }
+
+// FlagNames lists the visible flags as "--name" (and "-s" for shorts).
+func (f *FlagSet) FlagNames() []string {
+	var out []string
+	for _, d := range f.defs {
+		if d.hidden {
+			continue
+		}
+		out = append(out, "--"+d.name)
+		if d.short != "" {
+			out = append(out, "-"+d.short)
+		}
+	}
+	return out
+}

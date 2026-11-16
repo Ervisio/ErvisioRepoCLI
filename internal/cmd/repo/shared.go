@@ -25,7 +25,8 @@ $ eg repo view --web`,
 	}
 	c.AddGroup(cmdutil.Group{ID: "general", Title: "GENERAL COMMANDS"}, cmdutil.Group{ID: "targeted", Title: "TARGETED COMMANDS"})
 	c.AddCommand(newCreate(f), newList(f),
-		newClone(f), newDelete(f), newEdit(f), newFork(f), newRename(f), newSync(f), newView(f))
+		newClone(f), newDelete(f), newEdit(f), newFork(f), newRename(f), newSync(f), newView(f),
+		newGitignore(f), newLicense(f))
 	return c
 }
 

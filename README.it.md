@@ -44,12 +44,14 @@ in `~/.config/eg/config.yml`, con la stessa struttura di gh.
 | `eg api <endpoint>` | `-X`, `-f`, `-F`, `-H`, `--paginate`, `--slurp`, `--input`, `-i`, `--silent`, `--hostname`, `--jq`; segnaposto `{owner}`, `{repo}`, `{branch}`; `graphql` |
 | `eg repo list [owner]` | `-L`, `--visibility`, `--fork`, `--source`, `--archived`, `--no-archived`, `-l`, `--topic`, `--json` |
 | `eg repo view [repo]` | `--web`, `--branch`, `--json` |
-| `eg repo clone <repo> [dir] [-- gitflags]` | aggiunge il remote `upstream` per i fork |
-| `eg repo create [nome]` | `--public/--private/--internal`, `-d`, `--clone`, `--source . --push`, `--remote` |
+| `eg repo clone <repo> [dir] [-- gitflags]` | aggiunge il remote `upstream` per i fork (`-u`, `--no-upstream`) |
+| `eg repo create [nome]` | `--public/--private/--internal`, `-d`, `--clone`, `--source . --push`, `--remote`, `--add-readme`, `-g/--gitignore`, `-l/--license` |
+| `eg repo fork [repo] [-- gitflags]` | `--clone`, `--remote`, `--remote-name`, `--org`, `--fork-name`; rinomina `origin` in `upstream` come gh |
+| `eg repo gitignore list / view`, `eg repo license list / view` | template del server; `license view --web` |
 | `eg repo delete [repo] [--yes]` | |
 | `eg repo edit [repo]` | `--description`, `--default-branch`, `--visibility` |
 | `eg repo rename [nuovo-nome]` | aggiorna il remote git corrispondente |
-| `eg repo sync` | sincronizzazione locale dal remote (fast-forward o `--force`) |
+| `eg repo sync [fork]` | sincronizzazione locale dal remote (fast-forward o `--force`); con un fork come argomento, `merge-upstream` (solo fast-forward) |
 | `eg browse [numero \| path[:riga] \| sha]` | `--branch`, `--commit`, `--settings`, `--releases`, `--actions`, `--no-browser` |
 | `eg issue list` | `-s`, `-l`, `-a`, `-A`, `--mention`, `-m`, `-S/--search`, `-L`, `--json`, `--web` |
 | `eg issue view <n>` | `--comments`, `--json`, `--web` |
@@ -68,6 +70,17 @@ in `~/.config/eg/config.yml`, con la stessa struttura di gh.
 | `eg release list / view / create / edit / delete` | `--notes`, `-F`, `-t`, `--target`, `-d`, `-p`, `--verify-tag`, `--notes-from-tag`, `--cleanup-tag` |
 | `eg release upload / download / delete-asset` | `--clobber`; download `-p`, `-D`, `-O`, `-A zip\|tar.gz`, `--skip-existing` |
 | `eg label list / create / edit / delete` | `-S`, `--sort`, `--order`, `-c`, `-d`, `-f`, `-n` |
+| `eg run list` | `-L`, `-w`, `-b`, `-u`, `-e`, `-s`, `-c`, `--created`, `--json` |
+| `eg run view [id]` | `--log`, `--log-failed`, `-j`, `-v`, `-a`, `--exit-status`, `--web`, `--json`; le run importate da GitHub mostrano il link a GitHub |
+| `eg run watch / rerun / cancel [id]` | watch `-i`, `--exit-status`, `--compact`; rerun solo di run intere |
+| `eg run download [id]` | `-n`, `-p`, `-D`; artifact estratti dal loro zip |
+| `eg workflow list / view / run` | view `-y`, `-r`, `--web`; run `-f`, `-F` (`@file`), `--ref`, `--json` |
+| `eg secret list / set / delete` | livello repository; `set -b`, `-f .env`, `--no-store`; valori cifrati con la chiave del repository |
+| `eg variable list / get / set / delete` | livello repository; `set -b`, `-f .env`; `--json` |
+| `eg search repos / issues / prs / code` | i flag qualificatori di gh; issues, prs e code cercano in un solo repository (`--repo`, `repo:` o il clone corrente) |
+| `eg alias set / list / delete` | segnaposto `$1`, `--clobber`, `-` legge l'espansione da stdin; niente alias di shell |
+| `eg config get / set / list` | `git_protocol`, `editor`, `prompt`, `pager`, `browser`; `-h` per host |
+| `eg completion -s bash\|zsh\|fish\|powershell` | completa comandi, flag e alias dall'albero dei comandi |
 
 Il repository si risolve come in gh: `--repo/-R [HOST/]OWNER/REPO`, poi `EG_REPO`,
 poi i remote git che puntano a un host su cui si è fatto login (`upstream`, poi
@@ -91,19 +104,26 @@ Codici di uscita: 0 successo, 1 errore, 2 annullato, 4 autenticazione richiesta,
 - `--jq` accetta solo percorsi semplici (`.name`, `.[].name`, `.items | .[0]`);
   `--template` non è supportato.
 - I token stanno sempre in `hosts.yml` (niente keyring).
-- Non ancora supportati dal server: `repo fork` (manca `POST /repos/{owner}/{repo}/forks`),
-  `repo sync` remoto (manca `merge-upstream`), `repo create --template/--gitignore/--license/--add-readme`,
-  le impostazioni di `repo edit` diverse da descrizione, branch predefinito e visibilità,
-  `browse --wiki/--projects`, `issue delete` (manca la mutation `deleteIssue`),
-  `issue lock/unlock` (manca `PUT/DELETE .../issues/{n}/lock`),
-  `release create --generate-notes/--notes-start-tag` (manca `POST .../releases/generate-notes`),
-  `release --latest` (`make_latest` viene ignorato), `pr merge --admin/--author-email`,
-  `pr checks --required`, revisori team e project.
+- Non ancora supportati dal server: `repo create --template`, le impostazioni di `repo edit` diverse
+  da descrizione, branch predefinito e visibilità, `browse --wiki/--projects`, `issue delete` (manca la
+  mutation `deleteIssue`), `issue lock/unlock` (manca `PUT/DELETE .../issues/{n}/lock`), `release create
+  --generate-notes/--notes-start-tag` (manca `POST .../releases/generate-notes`), `release --latest`
+  (`make_latest` viene ignorato), `pr merge --admin/--author-email`, `pr checks --required`, revisori
+  team e project, `workflow enable/disable`, `run delete`, `run rerun --failed/--job/--debug`, secret e
+  variabili di organizzazione, ambiente e utente (`--org`, `--env`, `--user`), `search commits`,
+  `repo sync --force` remoto. `repo fork --default-branch-only` è accettato ma vengono copiati tutti i branch.
 - `issue list`/`pr list` stampano "Showing N of M" contando le pagine REST (fino a 1000
-  elementi); `--search` e `status` usano la `search` GraphQL del server, che richiede `repo:`.
-- Non ancora implementati: `issue develop/pin/unpin/transfer`, `label clone`, `run`, `workflow`,
-  `search`, `gist`, `status`, `auth switch/refresh`, `repo set-default`, `config`, `alias`, `extension`.
+  elementi); `--search`, `status` e `eg search issues/prs/code` richiedono un repository (`repo:`),
+  che `eg` prende da `--repo` o dal clone corrente.
+- Le run importate da GitHub (sincronizzazione GitHub) mostrano riepilogo e link a GitHub; job, log e
+  artifact restano su GitHub.
+- Gli alias si espandono nel processo: gli alias di shell (`!`, `--shell`) sono rifiutati perché `eg`
+  non avvia mai una shell.
+- Non ancora implementati: `issue develop/pin/unpin/transfer`, `label clone`, `gist`, `status` (il
+  server non cerca su più repository), `auth switch/refresh`, `repo set-default`, `extension`, `cache`,
+  `alias import`, i prompt interattivi degli input di `workflow run`.
 
 ## Sviluppo
 
-`make build`, `make vet`, `make fmt-check`, `make lint`. Solo libreria standard.
+`make build`, `make vet`, `make fmt-check`, `make lint`. Solo libreria standard, più
+`golang.org/x/crypto` per la sealed box libsodium di `eg secret set`.

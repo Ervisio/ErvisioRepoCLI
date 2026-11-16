@@ -65,9 +65,9 @@ $ eg repo create my-project --private --source=. --remote=upstream`,
 	fl.StringVarP(&o.remote, "remote", "r", "", "Specify remote name for the new repository")
 	fl.BoolVarP(&o.push, "push", "", false, "Push local commits to the new repository")
 	fl.StringVarP(&o.template, "template", "p", "", "Make the new repository based on a template `repository` (not supported yet)")
-	fl.StringVarP(&o.gitignore, "gitignore", "g", "", "Specify a gitignore template for the repository (not supported yet)")
-	fl.StringVarP(&o.licens, "license", "l", "", "Specify an Open Source License for the repository (not supported yet)")
-	fl.BoolVarP(&o.addReadme, "add-readme", "", false, "Add a README file to the new repository (not supported yet)")
+	fl.StringVarP(&o.gitignore, "gitignore", "g", "", "Specify a gitignore template for the repository")
+	fl.StringVarP(&o.licens, "license", "l", "", "Specify an Open Source License for the repository")
+	fl.BoolVarP(&o.addReadme, "add-readme", "", false, "Add a README file to the new repository")
 	c.Run = func(c *cmdutil.Command, args []string) error {
 		name := ""
 		if len(args) > 0 {
@@ -82,8 +82,8 @@ func runCreate(f *cmdutil.Factory, c *cmdutil.Command, o *createOptions, name st
 	switch {
 	case o.template != "":
 		return cmdutil.Unsupported("Creating a repository from a template", "template support in POST /user/repos")
-	case o.gitignore != "", o.licens != "", o.addReadme:
-		return cmdutil.Unsupported("Initializing a repository with a README, .gitignore or license", "auto_init in POST /user/repos")
+	case o.source != "" && (o.gitignore != "" || o.licens != "" || o.addReadme):
+		return cmdutil.FlagErrorf("the `--add-readme`, `--gitignore` and `--license` options are not supported with `--source`")
 	}
 	if o.source != "" && o.clone {
 		return cmdutil.FlagErrorf("the `--source` option is not supported with `--clone`")
@@ -140,6 +140,9 @@ func runCreate(f *cmdutil.Factory, c *cmdutil.Command, o *createOptions, name st
 			return err
 		}
 		visibility = strings.ToLower(opts[i])
+		if err := promptInit(f, p, o); err != nil {
+			return err
+		}
 		if o.clone, err = p.Confirm("Clone the new repository locally?", true); err != nil {
 			return err
 		}
@@ -180,6 +183,16 @@ func runCreate(f *cmdutil.Factory, c *cmdutil.Command, o *createOptions, name st
 	if o.description != "" {
 		body["description"] = o.description
 	}
+	if o.addReadme {
+		body["auto_init"] = true
+	}
+	if o.gitignore != "" {
+		body["gitignore_template"] = o.gitignore
+	}
+	if o.licens != "" {
+		body["license_template"] = o.licens
+	}
+	initialized := o.addReadme || o.gitignore != "" || o.licens != ""
 	var created Repository
 	if _, err := client.REST(http.MethodPost, endpoint, body, &created); err != nil {
 		return err
@@ -194,6 +207,9 @@ func runCreate(f *cmdutil.Factory, c *cmdutil.Command, o *createOptions, name st
 
 	if o.source != "" {
 		return pushSource(f, o, remoteURL)
+	}
+	if o.clone && initialized {
+		return f.Git("").Run("clone", "--", remoteURL)
 	}
 	if o.clone {
 		// The repository is empty: initialize it locally as gh does.
@@ -239,6 +255,54 @@ func pushSource(f *cmdutil.Factory, o *createOptions, remoteURL string) error {
 	}
 	if ios.IsStdoutTTY() {
 		fmt.Fprintf(ios.Out, "%s Pushed commits to %s\n", cs.SuccessIcon(), remoteURL)
+	}
+	return nil
+}
+
+// promptInit asks for the README, .gitignore and license of a new
+// repository, as gh does.
+func promptInit(f *cmdutil.Factory, p *cmdutil.Prompter, o *createOptions) error {
+	var err error
+	if o.addReadme, err = p.Confirm("Would you like to add a README file?", false); err != nil {
+		return err
+	}
+	host, err := f.DefaultHost()
+	if err != nil {
+		return err
+	}
+	client, err := f.Client(host)
+	if err != nil {
+		return err
+	}
+	if ok, err := p.Confirm("Would you like to add a .gitignore?", false); err != nil {
+		return err
+	} else if ok {
+		names, err := gitignoreNames(client)
+		if err != nil {
+			return err
+		}
+		i, err := p.Select("Choose a .gitignore template", 0, names)
+		if err != nil {
+			return err
+		}
+		o.gitignore = names[i]
+	}
+	if ok, err := p.Confirm("Would you like to add a license?", false); err != nil {
+		return err
+	} else if ok {
+		lics, err := listLicenses(client)
+		if err != nil {
+			return err
+		}
+		opts := make([]string, len(lics))
+		for i, l := range lics {
+			opts[i] = l.Name
+		}
+		i, err := p.Select("Choose a license", 0, opts)
+		if err != nil {
+			return err
+		}
+		o.licens = lics[i].Key
 	}
 	return nil
 }

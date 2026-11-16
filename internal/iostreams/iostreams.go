@@ -166,3 +166,6 @@ func (c *ColorScheme) FailureIcon() string { return c.Red("X") }
 
 // WarningIcon is a yellow exclamation mark.
 func (c *ColorScheme) WarningIcon() string { return c.Yellow("!") }
+
+// SetNeverPrompt turns interactive prompts off (config prompt=disabled).
+func (s *IOStreams) SetNeverPrompt(v bool) { s.noPrompt = s.noPrompt || v }

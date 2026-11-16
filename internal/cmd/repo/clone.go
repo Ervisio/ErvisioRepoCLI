@@ -90,25 +90,32 @@ $ eg repo clone acme/widgets workspace/widgets -- --depth=1`,
 		if repo.Parent == nil || noUpstream {
 			return nil
 		}
-		parent := repo.Parent.Ref(r.Host)
 		name := upstreamName
 		if name == "@owner" {
-			name = parent.Owner
+			name = repo.Parent.Ref(r.Host).Owner
 		}
-		inRepo := f.Git(dir)
-		if repo.Parent.DefaultBranch != "" {
-			err = inRepo.Run("remote", "add", "-t", repo.Parent.DefaultBranch, name, cloneURL(f, parent))
-		} else {
-			err = inRepo.Run("remote", "add", name, cloneURL(f, parent))
-		}
-		if err != nil {
-			return err
-		}
-		if err := inRepo.Run("fetch", name); err != nil {
-			return err
-		}
-		_, err = inRepo.Output("config", "--add", "remote."+name+".eg-resolved", "base")
-		return err
+		return addUpstream(f, dir, repo.Parent, r.Host, name)
 	}
 	return c
+}
+
+// addUpstream adds the parent of a fork as a remote of the clone in dir,
+// fetches it and marks it as the base repository, as gh does.
+func addUpstream(f *cmdutil.Factory, dir string, parent *Repository, host, name string) error {
+	ref := parent.Ref(host)
+	g := f.Git(dir)
+	var err error
+	if parent.DefaultBranch != "" {
+		err = g.Run("remote", "add", "-t", parent.DefaultBranch, name, cloneURL(f, ref))
+	} else {
+		err = g.Run("remote", "add", name, cloneURL(f, ref))
+	}
+	if err != nil {
+		return err
+	}
+	if err := g.Run("fetch", name); err != nil {
+		return err
+	}
+	_, err = g.Output("config", "--add", "remote."+name+".eg-resolved", "base")
+	return err
 }

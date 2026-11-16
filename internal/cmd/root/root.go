@@ -10,14 +10,22 @@ import (
 
 	"github.com/Ervisio/ErvisioRepoCLI/internal/api"
 	"github.com/Ervisio/ErvisioRepoCLI/internal/build"
+	aliascmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/alias"
 	apicmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/api"
 	authcmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/auth"
 	browsecmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/browse"
+	completioncmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/completion"
+	configcmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/config"
 	issuecmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/issue"
 	labelcmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/label"
 	prcmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/pr"
 	releasecmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/release"
 	repocmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/repo"
+	runcmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/run"
+	searchcmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/search"
+	secretcmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/secret"
+	variablecmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/variable"
+	workflowcmd "github.com/Ervisio/ErvisioRepoCLI/internal/cmd/workflow"
 	"github.com/Ervisio/ErvisioRepoCLI/internal/cmdutil"
 )
 
@@ -41,9 +49,11 @@ $ eg repo list
 $ eg api repos/{owner}/{repo}/releases`,
 		IO: f.IO,
 	}
-	root.AddGroup(cmdutil.Group{ID: "core", Title: "CORE COMMANDS"})
+	root.AddGroup(cmdutil.Group{ID: "core", Title: "CORE COMMANDS"}, cmdutil.Group{ID: "actions", Title: "ERVISIO ACTIONS COMMANDS"})
 	root.AddCommand(authcmd.New(f), browsecmd.New(f), issuecmd.New(f), prcmd.New(f), releasecmd.New(f), repocmd.New(f),
-		labelcmd.New(f), apicmd.New(f), newVersion(f), newHelp(f, root))
+		searchcmd.New(f), runcmd.New(f), workflowcmd.New(f), secretcmd.New(f), variablecmd.New(f),
+		aliascmd.New(f), apicmd.New(f), completioncmd.New(f), configcmd.New(f), labelcmd.New(f),
+		newVersion(f), newHelp(f, root))
 	return root
 }
 
@@ -171,6 +181,24 @@ func Main(args []string) int {
 	if len(args) == 1 && (args[0] == "--version" || args[0] == "-v") {
 		fmt.Fprint(f.IO.Out, versionText())
 		return exitOK
+	}
+	if cfg, err := f.Config(); err == nil {
+		if cfg.Get("", "prompt") == "disabled" {
+			f.IO.SetNeverPrompt(true)
+		}
+		if len(args) > 0 && args[0] == "__complete" {
+			names, _ := cfg.Aliases()
+			completioncmd.Complete(f.IO.Out, root, names, args[1:])
+			return exitOK
+		}
+		expanded, ok, err := aliascmd.Expand(cfg, root, args)
+		if err != nil {
+			fmt.Fprintln(f.IO.ErrOut, err)
+			return exitError
+		}
+		if ok {
+			args = expanded
+		}
 	}
 	err := root.Execute(args)
 	if err == nil {

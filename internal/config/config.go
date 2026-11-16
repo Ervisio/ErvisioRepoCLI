@@ -258,12 +258,16 @@ func (c *Config) SetGitProtocol(host, p string) error {
 	return c.writeHosts()
 }
 
-func (c *Config) writeHosts() error {
+func (c *Config) writeHosts() error { return c.writeFile(c.HostsPath(), c.hosts) }
+
+func (c *Config) writeMain() error { return c.writeFile(filepath.Join(c.dir, configFile), c.main) }
+
+// writeFile replaces path atomically with the encoding of n (mode 0600).
+func (c *Config) writeFile(path string, n *Node) error {
 	if err := os.MkdirAll(c.dir, 0o700); err != nil {
 		return fmt.Errorf("create config directory: %w", err)
 	}
-	path := c.HostsPath()
-	tmp, err := os.CreateTemp(c.dir, ".hosts-*.yml")
+	tmp, err := os.CreateTemp(c.dir, ".eg-*.yml")
 	if err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
@@ -272,7 +276,7 @@ func (c *Config) writeHosts() error {
 		tmp.Close() //nolint:errcheck,gosec // already failing
 		return fmt.Errorf("write %s: %w", path, err)
 	}
-	if _, err := tmp.Write(c.hosts.Encode()); err != nil {
+	if _, err := tmp.Write(n.Encode()); err != nil {
 		tmp.Close() //nolint:errcheck,gosec // already failing
 		return fmt.Errorf("write %s: %w", path, err)
 	}
@@ -283,4 +287,37 @@ func (c *Config) writeHosts() error {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil
+}
+
+// Set stores a key in config.yml, or in the block of host in hosts.yml.
+func (c *Config) Set(host, key, value string) error {
+	if host != "" {
+		c.hosts.Map(host).SetString(key, value)
+		return c.writeHosts()
+	}
+	c.main.SetString(key, value)
+	return c.writeMain()
+}
+
+// Aliases returns the aliases of config.yml in file order.
+func (c *Config) Aliases() ([]string, map[string]string) {
+	a := c.main.Get("aliases")
+	names := a.Keys()
+	out := make(map[string]string, len(names))
+	for _, n := range names {
+		out[n] = a.String(n)
+	}
+	return names, out
+}
+
+// SetAlias stores an alias.
+func (c *Config) SetAlias(name, expansion string) error {
+	c.main.Map("aliases").SetString(name, expansion)
+	return c.writeMain()
+}
+
+// DeleteAlias removes an alias.
+func (c *Config) DeleteAlias(name string) error {
+	c.main.Map("aliases").Delete(name)
+	return c.writeMain()
 }

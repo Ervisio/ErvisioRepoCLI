@@ -3,8 +3,10 @@ package repo
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
+	"github.com/Ervisio/ErvisioRepoCLI/internal/api"
 	"github.com/Ervisio/ErvisioRepoCLI/internal/cmdutil"
 	"github.com/Ervisio/ErvisioRepoCLI/internal/ghrepo"
 	"github.com/Ervisio/ErvisioRepoCLI/internal/git"
@@ -25,13 +27,17 @@ be synced using a hard reset.
 Without an argument, the local repository is selected as the destination
 repository and its remote (or --source) as the source.
 
-Syncing a remote repository (passing a destination argument) needs the
-merge-upstream API, which the ErvisioRepo server does not offer yet.`,
+With a destination argument, the remote fork is synced from its parent
+through the merge-upstream API. The server only fast-forwards: --force and
+--source are not available for remote syncs.`,
 		Example: `# Sync local repository from remote parent
 $ eg repo sync
 
 # Sync local repository from remote parent on specific branch
-$ eg repo sync --branch v1`,
+$ eg repo sync --branch v1
+
+# Sync remote fork from its parent
+$ eg repo sync owner/cli-fork`,
 		GroupID: "targeted",
 		Flags:   cmdutil.NewFlagSet("sync"),
 		Args:    cmdutil.MaxArgs(1),
@@ -41,7 +47,13 @@ $ eg repo sync --branch v1`,
 	c.Flags.BoolVarP(&force, "force", "", false, "Hard reset the branch of the destination repository to match the source repository")
 	c.Run = func(_ *cmdutil.Command, args []string) error {
 		if len(args) > 0 {
-			return cmdutil.Unsupported("Syncing a remote repository", "POST /repos/{owner}/{repo}/merge-upstream")
+			switch {
+			case force:
+				return cmdutil.Unsupported("Force-syncing a remote repository", "a hard reset in POST /repos/{owner}/{repo}/merge-upstream")
+			case source != "":
+				return cmdutil.Unsupported("Syncing a remote repository from a --source other than its parent", "")
+			}
+			return syncRemote(f, args[0], branch)
 		}
 		return syncLocal(f, source, branch, force)
 	}
@@ -128,6 +140,61 @@ func syncLocal(f *cmdutil.Factory, source, branch string, force bool) error {
 	if ios.IsStdoutTTY() {
 		fmt.Fprintf(ios.Out, "%s Synced the \"%s\" branch from \"%s\" to local repository\n",
 			ios.ColorScheme().SuccessIcon(), branch, src.FullName())
+	}
+	return nil
+}
+
+// syncRemote fast-forwards a branch of a fork from its parent with
+// merge-upstream.
+func syncRemote(f *cmdutil.Factory, dest, branch string) error {
+	r, err := resolveArg(f, dest)
+	if err != nil {
+		return err
+	}
+	client, err := f.Client(r.Host)
+	if err != nil {
+		return err
+	}
+	repo, err := fetchRepo(client, r)
+	if err != nil {
+		return err
+	}
+	if repo.Parent == nil {
+		return fmt.Errorf("can't determine source repository for %s because repository is not fork", r.FullName())
+	}
+	body := map[string]any{}
+	if branch != "" {
+		body["branch"] = branch
+	}
+	var res struct {
+		Message    string `json:"message"`
+		MergeType  string `json:"merge_type"`
+		BaseBranch string `json:"base_branch"`
+	}
+	if _, err := client.REST(http.MethodPost, repoPath(r)+"/merge-upstream", body, &res); err != nil {
+		switch {
+		case api.IsStatus(err, http.StatusConflict):
+			return errors.New("can't sync because there are diverging changes; the server only fast-forwards, " +
+				"so merge the parent locally (eg repo sync --force in a clone) and push")
+		case api.IsStatus(err, http.StatusUnprocessableEntity):
+			return fmt.Errorf("can't sync: %w", err)
+		}
+		return err
+	}
+	if branch == "" {
+		branch = repo.DefaultBranch
+	}
+	ios := f.IO
+	if ios.IsStdoutTTY() {
+		parent := repo.Parent.Ref(r.Host)
+		base := res.BaseBranch
+		if base == "" {
+			base = branch
+		} else if _, b, ok := strings.Cut(base, ":"); ok {
+			base = b
+		}
+		fmt.Fprintf(ios.Out, "%s Synced the \"%s:%s\" branch from \"%s:%s\"\n",
+			ios.ColorScheme().SuccessIcon(), r.Owner, branch, parent.Owner, base)
 	}
 	return nil
 }

@@ -333,3 +333,9 @@ func (c *Command) WriteHelp(w io.Writer) {
 	section("LEARN MORE", "  Use `eg <command> <subcommand> --help` for more information about a command.\n"+
 		"  Read the manual at https://github.com/Ervisio/ErvisioRepoCLI#readme")
 }
+
+// Commands returns the subcommands.
+func (c *Command) Commands() []*Command { return c.subs }
+
+// Parent returns the parent command (nil at the root).
+func (c *Command) Parent() *Command { return c.parent }

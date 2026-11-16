@@ -247,31 +247,3 @@ specified repository with --repo.`,
 	}
 	return c
 }
-
-func newFork(*cmdutil.Factory) *cmdutil.Command {
-	var b bool
-	var s string
-	c := &cmdutil.Command{
-		Use:   "fork [<repository>] [-- <gitflags>...]",
-		Short: "Create a fork of a repository",
-		Long: `Create a fork of a repository.
-
-Not supported yet: the GitHub-compatible API of ErvisioRepo does not expose
-fork creation (POST /repos/{owner}/{repo}/forks). Fork from the web
-interface, then use eg repo clone.`,
-		GroupID:  "targeted",
-		Flags:    cmdutil.NewFlagSet("fork"),
-		KeepDash: true,
-		Args:     cmdutil.MaxArgs(1),
-	}
-	c.Flags.BoolVarP(&b, "clone", "", false, "Clone the fork")
-	c.Flags.BoolVarP(&b, "remote", "", false, "Add a git remote for the fork")
-	c.Flags.StringVarP(&s, "remote-name", "", "origin", "Specify the name for the new remote")
-	c.Flags.StringVarP(&s, "org", "", "", "Create the fork in an organization")
-	c.Flags.StringVarP(&s, "fork-name", "", "", "Rename the forked repository")
-	c.Flags.BoolVarP(&b, "default-branch-only", "", false, "Only include the default branch in the fork")
-	c.Run = func(*cmdutil.Command, []string) error {
-		return cmdutil.Unsupported("repo fork", "POST /repos/{owner}/{repo}/forks")
-	}
-	return c
-}

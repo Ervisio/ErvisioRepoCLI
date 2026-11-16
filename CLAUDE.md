@@ -3,7 +3,7 @@
 `eg` è il client CLI di ErvisioRepo e deve comportarsi come `gh` (comandi, flag,
 output, codici di uscita; variabili d'ambiente `EG_*`).
 
-1. Solo libreria standard Go (`flag`, `net/http`, `encoding/json`...); nessuna dipendenza
+1. Solo libreria standard Go (`flag`, `net/http`, `encoding/json`...) più `golang.org/x/crypto` (sealed box di `eg secret set`); nessun'altra dipendenza
    esterna. Non si modifica `go.mod` senza dirlo nel report.
 2. `os/exec` solo in `internal/git` (per `git`) e in `internal/launch` (browser, pager,
    editor dell'utente, come gh), sempre con argv diretto e mai via shell. I valori di
@@ -26,7 +26,7 @@ output, codici di uscita; variabili d'ambiente `EG_*`).
 
 - `cmd/eg`: `main` minimale.
 - `internal/cmd/<gruppo>`: comandi (`auth`, `api`, `repo`, `browse`, `issue`, `pr`,
-  `release`, `label`, `root`); `internal/cmd/shared` contiene tipi e helper comuni a issue e pr.
+  `release`, `label`, `run`, `workflow`, `secret`, `variable`, `search`, `alias`, `config`, `completion`, `root`); `internal/cmd/shared` contiene tipi e helper comuni a issue e pr.
 - `internal/cmdutil`: albero dei comandi, flag, help, factory, tabelle, `--json`, prompt.
 - `internal/api`: client REST/GraphQL; `internal/config`: `hosts.yml`/`config.yml`;
   `internal/ghrepo`: parsing dei repository; `internal/git`: esecuzione di git;
