@@ -60,11 +60,13 @@ jobs:
           # Release notes: the CHANGELOG section of this version, if any.
           awk -v v="${TAG#v}" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > notes.md
           body=$(python3 -c 'import json, os; print(json.dumps({"tag_name": os.environ["TAG"], "target_commitish": os.environ["GITHUB_SHA"], "name": os.environ["TAG"], "body": open("notes.md").read()}))')
-          upload=$(curl -fsS -X POST -H "$auth" -H "Accept: application/vnd.github+json" "$api/releases" -d "$body" |
-            python3 -c 'import json, sys; print(json.load(sys.stdin)["upload_url"].split("{")[0])')
+          if ! curl -sS --fail-with-body -o release.json -X POST -H "$auth" -H "Accept: application/vnd.github+json" "$api/releases" -d "$body"; then
+            cat release.json; exit 1
+          fi
+          upload=$(python3 -c 'import json; print(json.load(open("release.json"))["upload_url"].split("{")[0])')
           for f in dist/*.tar.gz dist/*.zip dist/checksums.txt; do
             echo "uploading ${f#dist/}"
-            curl -fsS -X POST -H "$auth" -H "Content-Type: application/octet-stream" \
+            curl -sS --fail-with-body -X POST -H "$auth" -H "Content-Type: application/octet-stream" \
               --data-binary "@$f" "$upload?name=${f#dist/}" > /dev/null
           done
           echo "Released $TAG: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG"
